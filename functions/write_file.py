@@ -13,7 +13,7 @@ def write_file(working_directory, file_path, content):
     
     # Is our target directory legal/within the working directory
     try:
-        file_path_abs = os.path.join(working_directory_abs, file_path)
+        file_path_abs = os.path.abspath(os.path.join(working_directory_abs, file_path))
     except:
         return f"Error: {file_path} not found."
     
