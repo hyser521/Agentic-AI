@@ -25,8 +25,8 @@ def get_files_info(working_directory, directory=None):
     if os.path.isdir(directory_abs) == False or directory_abs.startswith(working_directory_abs) == False:
         return f'Error: Cannot read "{directory}" as it is outside the permitted working directory'
     
-    directory_contents = list(map(lambda x: f"- {x}: file_size={os.path.getsize(os.path.join(directory_abs, x))}, is_dir={os.path.isdir(os.path.join(directory_abs, x))}", os.listdir(directory_abs)))
-    ret = "\n".join(directory_contents)
+    directory_contents = list(map(lambda x: f"{x}: file_size={os.path.getsize(os.path.join(directory_abs, x))}, is_dir={os.path.isdir(os.path.join(directory_abs, x))},", os.listdir(directory_abs)))
+    ret = "{" + "\n".join(directory_contents) + "}"
     return ret
 
 schema_get_files_info = types.FunctionDeclaration(

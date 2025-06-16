@@ -21,40 +21,41 @@ def main():
     messages = [types.Content(role="user", parts=[types.Part(text=prompt)])]
     if verbose:
         print(f"User prompt: {prompt}")
-        
+
     generate_content(client, messages, verbose)
 
 
 def generate_content(client, messages, verbose):
-    model_name = "gemini-2.0-flash-001"
+    for x in range (0, 20):
+        model_name = "gemini-2.0-flash-001"
 
-    content_response = client.models.generate_content(
-        model = model_name, 
-        contents = messages,
-        config=types.GenerateContentConfig(system_instruction=system_prompt, tools=[available_functions]))
-    
-    if verbose:
-        print(f"Prompt tokens: {content_response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {content_response.usage_metadata.candidates_token_count}")
-
-    if not content_response.function_calls:
-        return content_response.text
-
-    function_responses = []
-    for function_call_part in content_response.function_calls:
-        function_call_result = call_function(function_call_part, verbose)
-        if (
-            not function_call_result.parts
-            or not function_call_result.parts[0].function_response
-        ):
-            raise Exception("empty function call result")
+        content_response = client.models.generate_content(
+            model = model_name, 
+            contents = messages,
+            config=types.GenerateContentConfig(system_instruction=system_prompt, tools=[available_functions]))
+        
         if verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
-        function_responses.append(function_call_result.parts[0])
-    
-    if not function_responses:
-        if not function_responses:
-            raise Exception("no function responses generated, exiting.")
+            print(f"Prompt tokens: {content_response.usage_metadata.prompt_token_count}")
+            print(f"Response tokens: {content_response.usage_metadata.candidates_token_count}")
+            print(content_response.text)
+
+        for candidate in content_response.candidates:
+            messages.append(candidate.content)
+        
+        if content_response.function_calls:
+            for function_call_part in content_response.function_calls:
+                function_call_result = call_function(function_call_part, verbose)
+                if (
+                    not function_call_result.parts
+                    or not function_call_result.parts[0].function_response
+                ):
+                    raise Exception("empty function call result")
+                if verbose:
+                    print(f"-> {function_call_result.parts[0].function_response.response}")
+                messages.append(function_call_result)
+        else:
+            print(content_response.text)
+            return
 
 if __name__ == "__main__":
     main()
