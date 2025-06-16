@@ -1,22 +1,60 @@
 import os
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
+from call_function import available_functions, call_function
+from prompts import system_prompt
 import sys
 
-load_dotenv()
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+def main():
+    load_dotenv()
+    api_key = os.environ.get("GEMINI_API_KEY")
+    client = genai.Client(api_key=api_key)
+    verbose = "--verbose" in sys.argv
+    args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    
+    if not args:
+        print("no prompt added.")
+        exit(1)
 
-if len(sys.argv) <= 1:
-    print("no prompt added.")
-    exit(1)
+    prompt = " ".join(args)
+    messages = [types.Content(role="user", parts=[types.Part(text=prompt)])]
+    if verbose:
+        print(f"User prompt: {prompt}")
+        
+    generate_content(client, messages, verbose)
 
-prompt = sys.argv[1]
-messages = [genai.types.Content(role="user", parts=[genai.types.Part(text=prompt)])]
-content_response = client.models.generate_content(model = "gemini-2.0-flash-001", contents = messages)
-if len(sys.argv) == 3:
-    print(f"User prompt: {prompt}")
-    print(f"Prompt tokens: {content_response.usage_metadata.prompt_token_count}")
-    print(f"Response tokens: {content_response.usage_metadata.candidates_token_count}")
-print(content_response.text)
-exit(0)
+
+def generate_content(client, messages, verbose):
+    model_name = "gemini-2.0-flash-001"
+
+    content_response = client.models.generate_content(
+        model = model_name, 
+        contents = messages,
+        config=types.GenerateContentConfig(system_instruction=system_prompt, tools=[available_functions]))
+    
+    if verbose:
+        print(f"Prompt tokens: {content_response.usage_metadata.prompt_token_count}")
+        print(f"Response tokens: {content_response.usage_metadata.candidates_token_count}")
+
+    if not content_response.function_calls:
+        return content_response.text
+
+    function_responses = []
+    for function_call_part in content_response.function_calls:
+        function_call_result = call_function(function_call_part, verbose)
+        if (
+            not function_call_result.parts
+            or not function_call_result.parts[0].function_response
+        ):
+            raise Exception("empty function call result")
+        if verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+        function_responses.append(function_call_result.parts[0])
+    
+    if not function_responses:
+        if not function_responses:
+            raise Exception("no function responses generated, exiting.")
+
+if __name__ == "__main__":
+    main()
